@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Microsoft.Xna.Framework;
 using TShockAPI;
+using static MonoMod.InlineRT.MonoModRule;
 using static PlayerSpeed.PlayerSpeed;
 
 namespace PlayerSpeed;
@@ -11,7 +12,6 @@ public class Commands
     public static void vel(CommandArgs args)
     {
         var plr = args.Player;
-
         if (!Config.Enabled || plr == null)
         {
             return;
@@ -23,11 +23,12 @@ public class Commands
             return;
         }
 
-        if (args.Parameters.Count >= 1)
+        if (args.Parameters.Count >= 1 && plr.HasPermission("vel.admin"))
         {
             switch (args.Parameters[0].ToLower())
             {
                 case "on":
+
                     Config.Enabled = true;
                     Config.Write();
                     plr.SendInfoMessage($"玩家 [{plr.Name}] 已[c/92C5EC:启用]加速功能。");
@@ -42,8 +43,16 @@ public class Commands
                 case "mess":
                     Config.Mess = !Config.Mess;
                     plr.SendSuccessMessage(Config.Mess ?
-                        $"玩家 [{plr.Name}] 的已[c/92C5EC:启用]冲刺播报" :
-                        $"玩家 [{plr.Name}] 的已[c/92C5EC:关闭]冲刺播报" );
+                        $"玩家 [{plr.Name}] 的已[c/92C5EC:启用]玩家速度播报" :
+                        $"玩家 [{plr.Name}] 的已[c/92C5EC:关闭]玩家速度播报");
+                    Config.Write();
+                    break;
+
+                case "boss":
+                    Config.KilledBoss = !Config.KilledBoss;
+                    plr.SendSuccessMessage(Config.KilledBoss ?
+                        $"玩家 [{plr.Name}] 的已[c/92C5EC:启用]自动进度模式" :
+                        $"玩家 [{plr.Name}] 的已[c/92C5EC:关闭]自动进度模式");
                     Config.Write();
                     break;
 
@@ -57,24 +66,42 @@ public class Commands
                     return;
 
                 case "reset":
-                        DB.ClearData();
-                        plr.SendInfoMessage("已清除所有玩家数据。");
+
+                    if (Config.BossList != null && Config.KilledBoss)
+                    {
+                        for (int i = 0; i < Config.BossList.Count; i++)
+                        {
+                            if (Config.BossList[i].Enabled)
+                            {
+                                Config.BossList[i].Enabled = false;
+                            }
+                        }
+
+                        Config.Write();
+                        plr.SendInfoMessage("已清除所有玩家数据,重置进度模式。");
+                    }
+                    else
+                    {
+                        plr.SendInfoMessage("已清除所有玩家数据");
+                    }
+
+                    DB.ClearData();
                     break;
 
                 case "set":
                 case "s":
                     if (args.Parameters.Count >= 2)
                     {
-                        Dictionary<string, string> ItemVal = new Dictionary<string, string>();
+                        Dictionary<string, string> ItemVal;
                         Parse(args.Parameters, out ItemVal, 1);
-                        UpdatePT(args,ItemVal);
+                        UpdatePT(args, ItemVal);
                     }
                     else
                     {
                         plr.SendMessage("参数: 速度([c/F24F62:sd]) 间隔([c/4898DC:r]) 冷却([c/FE7F53:t]) 次数([c/DBF34E:c])\n" +
                             "加跳跃物品([c/59E32B:add]) 删跳跃物品([c/F14F63:del])\n" +
                             "格式为:[c/48DCB8:/vel s sd 20 add 恐慌项链…]\n" +
-                            "确保属性后有正确的数字或名字,任意组合",244,255,150);
+                            "确保属性后有正确的数字或名字,任意组合", 244, 255, 150);
                     }
                     break;
                 default:
@@ -103,6 +130,13 @@ public class Commands
                 case "速度":
                     if (float.TryParse(kvp.Value, out float speed)) Config.Speed = speed;
                     prop = "速度";
+                    break;
+                case "gd":
+                case "h":
+                case "height":
+                case "高度":
+                    if (float.TryParse(kvp.Value, out float height)) Config.Height = height;
+                    prop = "高度";
                     break;
                 case "t":
                 case "sj":
@@ -196,7 +230,7 @@ public class Commands
         }
 
         // 将修改后的列表复制回 触发跳跃加速的物品ID表
-        Config.ArmorItem = new List<int>(UpdateItem); 
+        Config.ArmorItem = new List<int>(UpdateItem);
         Config.Write();
         TShock.Utils.Broadcast(mess.ToString(), 255, 244, 150);
     }
@@ -226,17 +260,35 @@ public class Commands
             return;
         }
 
-        plr.SendMessage("[i:3455][c/AD89D5:玩][c/D68ACA:家][c/DF909A:速][c/E5A894:度][i:3454]\n" +
-                        "/vel on ——开启插件功能\n" +
-                        "/vel off ——关闭插件功能\n" +
-                        "/vel set ——设置相关参数\n" +
-                        "/vel mess ——播报系统开关\n" +
-                        "/vel del 玩家名 ——删除玩家数据\n" +
-                        "/vel reset ——清除所有数据", Color.AntiqueWhite);
-
-        if (plr != null)
+        if (plr.HasPermission("vel.admin"))
         {
-            plr.SendInfoMessage($"冲刺速度:{Config.Speed} 冷却时间:{Config.CoolTime}");
+            plr.SendMessage("[i:3455][c/AD89D5:玩][c/D68ACA:家][c/DF909A:速][c/E5A894:度][i:3454]\n" +
+                            "/vel on ——开启插件功能\n" +
+                            "/vel off ——关闭插件功能\n" +
+                            "/vel set ——设置相关参数\n" +
+                            "/vel boss ——进度模式开关\n" +
+                            "/vel mess ——播报系统开关\n" +
+                            "/vel del 玩家名 ——删除玩家数据\n" +
+                            "/vel reset ——清除所有数据", Color.AntiqueWhite);
+        }
+
+        if (!Config.KilledBoss)
+        {
+            plr.SendInfoMessage($"速度:[c/4EA4F2:{Config.Speed}] 高度:[c/FF5265:{Config.Height}] " +
+                $"冷却:[c/48DCB8:{Config.CoolTime}] 间隔:[c/47DCBD:{Config.Range}]");
+        }
+        else
+        {
+            var boss = GetMaxSpeed(Config.BossList);
+            if (boss != null && boss.Enabled)
+            {
+                plr.SendInfoMessage($"最高速度:[c/4EA4F2:{boss.Speed}] 最大高度:[c/FF5265:{boss.Height}] " +
+                    $"冷却:[c/48DCB8:{boss.CoolTime}秒] 使用次数:[c/47DCBD:{boss.Count}秒]");
+            }
+            else
+            {
+                plr.SendInfoMessage("当前为进度模式,服务器未击败相关BOSS");
+            }
         }
     }
     #endregion

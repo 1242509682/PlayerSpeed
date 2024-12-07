@@ -229,7 +229,7 @@ public class Commands
         plr.SendMessage("[i:3455][c/AD89D5:玩][c/D68ACA:家][c/DF909A:速][c/E5A894:度][i:3454]\n" +
                         "/vel on ——开启插件功能\n" +
                         "/vel off ——关闭插件功能\n" +
-                        "/vel s ——设置全局冲刺速度\n" +
+                        "/vel set ——设置相关参数\n" +
                         "/vel mess ——播报系统开关\n" +
                         "/vel del 玩家名 ——删除玩家数据\n" +
                         "/vel reset ——清除所有数据", Color.AntiqueWhite);

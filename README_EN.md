@@ -2,7 +2,9 @@
 
 - Authors: 逆光奔跑 羽学
 - Source: TShock QQ Group 816771079
-- This is a Tshock server PlayerSpeed, mainly used for：increase player speed and distance during dashes.
+- This is a Tshock server PlayerSpeed, mainly used for：
+- Increase the speed and distance of player dashes and jumps.
+- Automatically place players in a cooldown period after they have performed the specified number of actions as defined in the configuration file.
 
 ## Update Log
 

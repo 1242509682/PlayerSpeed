@@ -9,14 +9,23 @@ public class Database
     #region 数据的结构体
     public class PlayerData
     {
+        //玩家名字
         public string Name { get; set; }
+        //启动冲刺开关
         public bool Enabled { get; set; } = false;
-        public DateTime Time { get; set; }
-        internal PlayerData(string name = "", bool enabled = true, DateTime time = default)
+        //正在冲刺开关
+        public bool InUse { get; set; } = false;
+        //冷却时间
+        public DateTime CoolTime { get; set; }
+        //使用时间
+        public DateTime UseTime { get; set; }
+        internal PlayerData(string name = "", bool enabled = true, bool inUse = true,DateTime coolTime = default, DateTime useTime = default)
         {
             this.Name = name ?? "";
             this.Enabled = enabled;
-            this.Time = time == default ? DateTime.UtcNow : time; // 使用 UTC 时间避免时区问题
+            this.InUse = inUse;
+            this.CoolTime = coolTime == default ? DateTime.UtcNow : coolTime;
+            this.UseTime = useTime == default ? DateTime.UtcNow : useTime;
         }
     }
     #endregion
@@ -31,7 +40,9 @@ public class Database
             new SqlColumn("ID", MySqlDbType.Int32) { Primary = true, Unique = true, AutoIncrement = true }, // 主键列
             new SqlColumn("Name", MySqlDbType.TinyText) { NotNull = true }, // 非空字符串列
             new SqlColumn("Enabled", MySqlDbType.Int32) { DefaultValue = "0" }, // bool值列
-            new SqlColumn("Time", MySqlDbType.DateTime) // 时间戳列，保留原字段名
+            new SqlColumn("InUse", MySqlDbType.Int32) { DefaultValue = "0" }, // bool值列
+            new SqlColumn("CoolTime", MySqlDbType.DateTime), // 时间戳列，保留原字段名
+            new SqlColumn("UseTime", MySqlDbType.DateTime) // 时间戳列，保留原字段名
         ));
     }
     #endregion
@@ -39,8 +50,8 @@ public class Database
     #region 为玩家创建数据方法
     public bool AddData(PlayerData data)
     {
-        return TShock.DB.Query("INSERT INTO PlayerSpeed (Name, Enabled, Time) VALUES (@0, @1, @2)",
-            data.Name, data.Enabled ? 1 : 0, data.Time) != 0;
+        return TShock.DB.Query("INSERT INTO PlayerSpeed (Name, Enabled, InUse, CoolTime, UseTime) VALUES (@0, @1, @2, @3, @4)",
+            data.Name, data.Enabled ? 1 : 0, data.InUse ? 1 : 0,data.CoolTime, data.UseTime) != 0;
     }
     #endregion
 
@@ -54,8 +65,8 @@ public class Database
     #region 更新数据内容方法
     public bool UpdateData(PlayerData data)
     {
-        return TShock.DB.Query("UPDATE PlayerSpeed SET Enabled = @0, Time = @1 WHERE Name = @2",
-            data.Enabled ? 1 : 0, data.Time, data.Name) != 0;
+        return TShock.DB.Query("UPDATE PlayerSpeed SET Enabled = @0, InUse = @1, CoolTime = @2, UseTime = @3 WHERE Name = @4",
+            data.Enabled ? 1 : 0, data.InUse ? 1 : 0, data.CoolTime, data.UseTime, data.Name) != 0;
     }
     #endregion
 
@@ -69,7 +80,9 @@ public class Database
             return new PlayerData(
                 name: reader.Get<string>("Name"),
                 enabled: reader.Get<int>("Enabled") == 1,
-                time: reader.Get<DateTime>("Time")
+                inUse: reader.Get<int>("InUse") == 1,
+                coolTime: reader.Get<DateTime>("CoolTime"),
+                useTime: reader.Get<DateTime>("UseTime")
             );
         }
 
@@ -87,7 +100,9 @@ public class Database
             data.Add(new PlayerData(
                 name: reader.Get<string>("Name"),
                 enabled: reader.Get<int>("Enabled") == 1,
-                time: reader.Get<DateTime>("Time")
+                inUse: reader.Get<int>("InUse") == 1,
+                coolTime: reader.Get<DateTime>("CoolTime"),
+                useTime: reader.Get<DateTime>("UseTime")
             ));
         }
 

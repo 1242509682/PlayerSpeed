@@ -9,11 +9,11 @@ namespace PlayerSpeed;
 [ApiVersion(2, 1)]
 public class PlayerSpeed : TerrariaPlugin
 {
-    #region 插件模版信息
+    #region 插件信息
     public override string Name => "玩家速度";
     public override string Author => "逆光奔跑 羽学";
-    public override Version Version => new Version(1, 1, 0);
-    public override string Description => "使用指令设置玩家移动速度 并在冲刺时触发";
+    public override Version Version => new Version(1, 2, 0);
+    public override string Description => "使用指令设置玩家移动速度 并在冲刺或穿上自定义装备跳跃时触发";
     #endregion
 
     #region 全局变量
@@ -82,8 +82,10 @@ public class PlayerSpeed : TerrariaPlugin
             var newData = new Database.PlayerData
             {
                 Name = plr.Name,
-                Enabled = true,
-                Time = DateTime.UtcNow,
+                Enabled = false,
+                InUse = false,
+                UseTime = DateTime.UtcNow,
+                CoolTime = DateTime.UtcNow,
             };
             DB.AddData(newData); // 添加到数据库
         }
@@ -99,51 +101,98 @@ public class PlayerSpeed : TerrariaPlugin
         if (plr == null || data == null || !Config.Enabled || !plr.IsLoggedIn || !plr.Active || !plr.HasPermission("vel.use")) return;
 
         var now = DateTime.UtcNow;
-        var last = 0f;
-        if (data.Time != default)
-        {
-            last = (float)Math.Round((now - data.Time).TotalSeconds, 2);
-        }
+        //冷却时间
+        var LastCool = data.CoolTime != default ? (float)Math.Round((now - data.CoolTime).TotalSeconds, 2) : 0f;
+        //使用时间
+        var LastUse = data.UseTime != default ? (float)Math.Round((now - data.UseTime).TotalMilliseconds, 2) : 0f;
 
-        if (!data.Enabled && last >= Config.CoolTime)
+        //计算冷却过去多久
+        if (!data.Enabled && LastCool >= Config.CoolTime)
         {
             data.Enabled = true;
             DB.UpdateData(data);
             if (Config.SendMess)
             {
-                plr.SendMessage($"玩家 [c/4EA4F2:{plr.Name}] 疾速[c/FF5265:冲刺]冷却完毕!", 244, 255, 150);
+                plr.SendMessage($"玩家 [c/4EA4F2:{plr.Name}] 疾速[c/FF5265:冲刺]冷却完毕!\n" +
+                    $"在疾速时间不断[c/DBF34E:按方向]或[c/47DCBC:跳跃]可无限冲!", 244, 255, 150);
             }
         }
 
-        if (data.Enabled && tplr.dashDelay == -1)
+        // 检查是否因达到最大使用时间而结束冲刺
+        if (data.InUse && LastUse >= Config.UseTime)
         {
-            if (tplr.direction == 1 && tplr.controlRight)
+            data.InUse = false;
+            data.Enabled = false;
+            data.CoolTime = now;
+            DB.UpdateData(data);
+            if (Config.SendMess)
             {
-                tplr.velocity.X = Config.Speed;
-                tplr.velocity = new Vector2(Config.Speed, tplr.velocity.Y);
-                TSPlayer.All.SendData(PacketTypes.PlayerUpdate, "", plr.Index, 0f, 0f, 0f, 0);
-                if (Config.SendMess)
-                {
-                    plr.SendMessage($"玩家 [c/4EA4F2:{plr.Name}] 疾速[c/FF5265:冲刺]结束! 上次冲刺过去了[c/FFAE52:{last}秒]", 244, 255, 150);
-                }
-                data.Enabled = false;
-                data.Time = now;
-                DB.UpdateData(data);
+                plr.SendMessage($"玩家 [c/4EA4F2:{plr.Name}] 因停止疾速[c/FF5265:冲刺]或[c/DBF34E:跳跃]" +
+                    $"\n超过[c/47DCBD:{Config.UseTime}毫秒]进入冷却", 244, 255, 150);
             }
-            else if (tplr.direction == -1 && tplr.controlLeft)
+            return;
+        }
+
+        var EverJump = CheckJupm(tplr);
+
+        if (data.Enabled)
+        {
+            if ((Config.dashDelay && tplr.dashDelay == -1) || (Config.EverJump && EverJump))
             {
-                tplr.velocity.X = -Config.Speed;
-                tplr.velocity = new Vector2(-Config.Speed, tplr.velocity.Y);
-                TSPlayer.All.SendData(PacketTypes.PlayerUpdate, "", plr.Index, 0f, 0f, 0f, 0);
-                if (Config.SendMess)
+                if (tplr.direction == 1 && tplr.controlRight)
                 {
-                    plr.SendMessage($"玩家 [c/4EA4F2:{plr.Name}] 疾速[c/FF5265:冲刺]结束! 上次冲刺过去了[c/FFAE52:{last}秒]", 244, 255, 150);
+                    tplr.velocity.X = Config.Speed;
+                    tplr.velocity = new Vector2(Config.Speed, tplr.velocity.Y);
+                    TSPlayer.All.SendData(PacketTypes.PlayerUpdate, "", plr.Index, 0f, 0f, 0f, 0);
+                    if (Config.SendMess && Config.SendMess2)
+                    {
+                        plr.SendMessage($"玩家 [c/4EA4F2:{plr.Name}] [c/FF5265:上次]冲刺:[c/FFAE52:{LastUse}毫秒]", 244, 255, 150);
+                    }
+
+                    data.UseTime = now;
+                    data.InUse = true;
+                    DB.UpdateData(data);
                 }
-                data.Enabled = false;
-                data.Time = now;
-                DB.UpdateData(data);
+
+                else if (tplr.direction == -1 && tplr.controlLeft)
+                {
+                    tplr.velocity.X = -Config.Speed;
+                    tplr.velocity = new Vector2(-Config.Speed, tplr.velocity.Y);
+                    TSPlayer.All.SendData(PacketTypes.PlayerUpdate, "", plr.Index, 0f, 0f, 0f, 0);
+                    if (Config.SendMess && Config.SendMess2)
+                    {
+                        plr.SendMessage($"玩家 [c/4EA4F2:{plr.Name}] [c/FF5265:上次]冲刺:[c/FFAE52:{LastUse}毫秒]", 244, 255, 150);
+                    }
+
+                    data.UseTime = now;
+                    data.InUse = true;
+                    DB.UpdateData(data);
+                }
             }
         }
     }
+    #endregion
+
+    #region 检查玩家跳跃方法
+    private static bool CheckJupm(Player tplr)
+    {
+        var click = 0;
+        var EverJump = false;
+        var CRight = tplr.controlRight && tplr.direction == 1;
+        var CLeft = tplr.controlLeft && tplr.direction == -1;
+        var armor = tplr.armor.Take(20).Any(x => Config.ArmorItem.Contains(x.netID));
+
+        if (CRight || CLeft)
+        {
+            click++;
+        }
+
+        if (click >= 1 && tplr.controlJump && armor)
+        {
+            EverJump = true;
+        }
+
+        return EverJump;
+    } 
     #endregion
 }

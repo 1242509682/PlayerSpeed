@@ -67,12 +67,14 @@ public class Commands
                     {
                         Dictionary<string, string> ItemVal = new Dictionary<string, string>();
                         Parse(args.Parameters, out ItemVal, 1);
-                        UpdatePT(ItemVal);
+                        UpdatePT(args,ItemVal);
                     }
                     else
                     {
-                        plr.SendInfoMessage("格式为:/vel s sd 20 sj 120\n" +
-                            "确保参数后有一个正确的数字");
+                        plr.SendMessage("参数: 速度([c/F24F62:sd]) 冷却([c/FE7F53:t]) 停止时间([c/4898DC:ut])\n" +
+                            "加跳跃物品([c/59E32B:add]) 删跳跃物品([c/F14F63:del])\n" +
+                            "格式为:[c/48DCB8:/vel s sd 20 add 恐慌项链…]\n" +
+                            "确保属性后有正确的数字或名字,任意组合",244,255,150);
                     }
                     break;
                 default:
@@ -82,40 +84,113 @@ public class Commands
             return;
         }
     }
-
-
     #endregion
 
     #region 解析输入参数的属性名 通用方法
-    private static void UpdatePT(Dictionary<string, string> itemValues)
+    private static void UpdatePT(CommandArgs args, Dictionary<string, string> itemValues)
     {
+        List<int> UpdateItem = new List<int>(Config.ArmorItem); // 创建现有物品列表的副本
+
         var mess = new StringBuilder();
         mess.Append($"修改冲刺:");
         foreach (var kvp in itemValues)
         {
-            string propName;
+            string prop;
             switch (kvp.Key.ToLower())
             {
                 case "sd":
                 case "speed":
                 case "速度":
                     if (float.TryParse(kvp.Value, out float speed)) Config.Speed = speed;
-                    propName = "速度";
+                    prop = "速度";
                     break;
                 case "t":
                 case "sj":
                 case "time":
+                case "冷却":
                 case "时间":
                     if (int.TryParse(kvp.Value, out int t)) Config.CoolTime = t;
-                    propName = "冷却时间";
+                    prop = "冷却时间";
+                    break;
+                case "wx":
+                case "ut":
+                case "无限冲":
+                case "停止时间":
+                    if (int.TryParse(kvp.Value, out int ut)) Config.UseTime = ut;
+                    prop = "停止时间";
+                    break;
+                case "add":
+                case "添加物品":
+                    var add = TShock.Utils.GetItemByIdOrName(kvp.Value);
+                    if (add.Count == 0)
+                    {
+                        args.Player.SendInfoMessage($"找不到名为 {kvp.Value} 的物品.");
+                        return;
+                    }
+                    else if (add.Count > 1)
+                    {
+                        args.Player.SendMultipleMatchError(add.Select(i => i.Name));
+                        return;
+                    }
+
+                    var newItemId = add[0].netID;
+                    if (!UpdateItem.Contains(newItemId))
+                    {
+                        UpdateItem.Add(newItemId);
+                        prop = $"添加物品";
+                    }
+                    else
+                    {
+                        prop = $"物品已存在";
+                    }
+                    break;
+                case "del":
+                case "移除物品":
+                    if (int.TryParse(kvp.Value, out int remove))
+                    {
+                        if (UpdateItem.Remove(remove))
+                        {
+                            prop = $"移除物品";
+                        }
+                        else
+                        {
+                            prop = $"物品 {remove} 不存在.";
+                        }
+                    }
+                    else
+                    {
+                        var ToRemove = TShock.Utils.GetItemByIdOrName(kvp.Value);
+                        if (ToRemove.Count == 0)
+                        {
+                            args.Player.SendInfoMessage($"找不到名为 {kvp.Value} 的物品.");
+                            return;
+                        }
+                        else if (ToRemove.Count > 1)
+                        {
+                            args.Player.SendMultipleMatchError(ToRemove.Select(i => i.Name));
+                            return;
+                        }
+
+                        var del = ToRemove[0];
+                        if (UpdateItem.Remove(del.netID))
+                        {
+                            prop = $"移除物品";
+                        }
+                        else
+                        {
+                            prop = $"物品不存在";
+                        }
+                    }
                     break;
                 default:
-                    propName = kvp.Key;
+                    prop = kvp.Key;
                     break;
             }
-            mess.AppendFormat("[c/94D3E4:{0}]:[c/FF6975:{1}] ", propName, kvp.Value);
+            mess.AppendFormat("[c/94D3E4:{0}]([c/FF6975:{1}]) ", prop, kvp.Value);
         }
 
+        // 将修改后的列表复制回 触发跳跃加速的物品ID表
+        Config.ArmorItem = new List<int>(UpdateItem); 
         Config.Write();
         TShock.Utils.Broadcast(mess.ToString(), 255, 244, 150);
     }

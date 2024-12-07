@@ -98,8 +98,8 @@ public class Commands
                     }
                     else
                     {
-                        plr.SendMessage("参数: 速度([c/F24F62:sd]) 间隔([c/4898DC:r]) 冷却([c/FE7F53:t]) 次数([c/DBF34E:c])\n" +
-                            "加跳跃物品([c/59E32B:add]) 删跳跃物品([c/F14F63:del])\n" +
+                        plr.SendMessage("参数: 速度([c/F24F62:sd]) 高度([c/48DCB8:h]) 间隔([c/4898DC:r]) 冷却([c/FE7F53:t])\n" +
+                            "次数([c/DBF34E:c]) 加跳跃物品([c/59E32B:add]) 删跳跃物品([c/F14F63:del])\n" +
                             "格式为:[c/48DCB8:/vel s sd 20 add 恐慌项链…]\n" +
                             "确保属性后有正确的数字或名字,任意组合", 244, 255, 150);
                     }

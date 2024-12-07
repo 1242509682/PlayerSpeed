@@ -40,8 +40,8 @@ public class Commands
                     break;
 
                 case "mess":
-                    Config.SendMess = !Config.SendMess;
-                    plr.SendSuccessMessage(Config.SendMess ?
+                    Config.Mess = !Config.Mess;
+                    plr.SendSuccessMessage(Config.Mess ?
                         $"玩家 [{plr.Name}] 的已[c/92C5EC:启用]冲刺播报" :
                         $"玩家 [{plr.Name}] 的已[c/92C5EC:关闭]冲刺播报" );
                     Config.Write();
@@ -71,7 +71,7 @@ public class Commands
                     }
                     else
                     {
-                        plr.SendMessage("参数: 速度([c/F24F62:sd]) 冷却([c/FE7F53:t]) 停止时间([c/4898DC:ut])\n" +
+                        plr.SendMessage("参数: 速度([c/F24F62:sd]) 间隔([c/4898DC:r]) 冷却([c/FE7F53:t]) 次数([c/DBF34E:c])\n" +
                             "加跳跃物品([c/59E32B:add]) 删跳跃物品([c/F14F63:del])\n" +
                             "格式为:[c/48DCB8:/vel s sd 20 add 恐慌项链…]\n" +
                             "确保属性后有正确的数字或名字,任意组合",244,255,150);
@@ -89,7 +89,7 @@ public class Commands
     #region 解析输入参数的属性名 通用方法
     private static void UpdatePT(CommandArgs args, Dictionary<string, string> itemValues)
     {
-        List<int> UpdateItem = new List<int>(Config.ArmorItem); // 创建现有物品列表的副本
+        List<int> UpdateItem = new List<int>(Config.ArmorItem!);
 
         var mess = new StringBuilder();
         mess.Append($"修改冲刺:");
@@ -110,14 +110,20 @@ public class Commands
                 case "冷却":
                 case "时间":
                     if (int.TryParse(kvp.Value, out int t)) Config.CoolTime = t;
-                    prop = "冷却时间";
+                    prop = "冷却";
                     break;
-                case "wx":
-                case "ut":
-                case "无限冲":
-                case "停止时间":
-                    if (int.TryParse(kvp.Value, out int ut)) Config.UseTime = ut;
-                    prop = "停止时间";
+                case "c":
+                case "ct":
+                case "count":
+                case "次数":
+                    if (int.TryParse(kvp.Value, out int ct)) Config.Count = ct;
+                    prop = "次数";
+                    break;
+                case "r":
+                case "range":
+                case "间隔":
+                    if (double.TryParse(kvp.Value, out double r)) Config.Range = r;
+                    prop = "间隔";
                     break;
                 case "add":
                 case "添加物品":

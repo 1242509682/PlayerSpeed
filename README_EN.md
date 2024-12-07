@@ -7,6 +7,14 @@
 ## Update Log
 
 ```
+v1.2.1
+Refactored the infinite dash logic to avoid performance issues:
+- Enters cooldown after reaching the configured 'count' of actions.
+- Added interval time (in milliseconds) between each action.
+- Removed "last jump" related announcements.
+- Removed stop time (ut) attribute.
+- Added new property parameters to the `/vel s` command: `interval:r`, `count:c`.
+
 v1.2.0
 Infinite Sprint Mechanism Added:
 When using shield-type accessories, double-tap to sprint continuously.
@@ -47,15 +55,16 @@ Decompiled from Niguang Benpao's version.
 > Configuration file location： tshock/玩家速度.json
 ```json
 {
-  "PluginEnabled": true,
-  "InfiniteSprintCooldownSeconds": 35,
-  "MillisecondsToStopInfiniteSprint": 1000,
-  "SprintSpeed": 20.0,
-  "EnableBroadcastMessages": true,
-  "ShieldDoubleTapSprintBoost": true,
-  "BroadcastInfiniteSprintInterval": true,
-  "JumpBoostWithEquippedItems": true,
-  "TriggerJumpBoostItemIDs": [
+  "Enabled": true,
+  "Count": 5,
+  "Interval": 2000.0,
+  "Cooldown": 25,
+  "Speed": 30.0,
+  "SendMessages": true,
+  "DashEnabled": true,
+  "DashSpeedMultiplier": 2.0,
+  "JumpSpeedUpdate": true,
+  "JumpSpeedItems": [
     5107,
     4989
   ]

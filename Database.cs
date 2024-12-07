@@ -11,21 +11,21 @@ public class Database
     {
         //玩家名字
         public string Name { get; set; }
-        //启动冲刺开关
+        //限制次数
+        public int Count { get; set; }
+        //启动疾速模式开关
         public bool Enabled { get; set; } = false;
-        //正在冲刺开关
-        public bool InUse { get; set; } = false;
         //冷却时间
         public DateTime CoolTime { get; set; }
-        //使用时间
-        public DateTime UseTime { get; set; }
-        internal PlayerData(string name = "", bool enabled = true, bool inUse = true,DateTime coolTime = default, DateTime useTime = default)
+        //间隔时间
+        public DateTime RangeTime { get; set; }
+        internal PlayerData(string name = "",int count = 0 , bool enabled = true, DateTime coolTime = default, DateTime rangeTime = default)
         {
             this.Name = name ?? "";
+            this.Count = count;
             this.Enabled = enabled;
-            this.InUse = inUse;
             this.CoolTime = coolTime == default ? DateTime.UtcNow : coolTime;
-            this.UseTime = useTime == default ? DateTime.UtcNow : useTime;
+            this.RangeTime = rangeTime;
         }
     }
     #endregion
@@ -40,9 +40,10 @@ public class Database
             new SqlColumn("ID", MySqlDbType.Int32) { Primary = true, Unique = true, AutoIncrement = true }, // 主键列
             new SqlColumn("Name", MySqlDbType.TinyText) { NotNull = true }, // 非空字符串列
             new SqlColumn("Enabled", MySqlDbType.Int32) { DefaultValue = "0" }, // bool值列
-            new SqlColumn("InUse", MySqlDbType.Int32) { DefaultValue = "0" }, // bool值列
-            new SqlColumn("CoolTime", MySqlDbType.DateTime), // 时间戳列，保留原字段名
-            new SqlColumn("UseTime", MySqlDbType.DateTime) // 时间戳列，保留原字段名
+            new SqlColumn("Count", MySqlDbType.Int32), //限制计数
+            new SqlColumn("CoolTime", MySqlDbType.DateTime), // 冷却时间
+            new SqlColumn("RangeTime", MySqlDbType.DateTime) // 防抖间隔
+
         ));
     }
     #endregion
@@ -50,8 +51,8 @@ public class Database
     #region 为玩家创建数据方法
     public bool AddData(PlayerData data)
     {
-        return TShock.DB.Query("INSERT INTO PlayerSpeed (Name, Enabled, InUse, CoolTime, UseTime) VALUES (@0, @1, @2, @3, @4)",
-            data.Name, data.Enabled ? 1 : 0, data.InUse ? 1 : 0,data.CoolTime, data.UseTime) != 0;
+        return TShock.DB.Query("INSERT INTO PlayerSpeed (Name, Enabled,Count, CoolTime, RangeTime) VALUES (@0, @1, @2, @3, @4)",
+            data.Name, data.Enabled ? 1 : 0,data.Count, data.CoolTime, data.RangeTime) != 0;
     }
     #endregion
 
@@ -65,8 +66,8 @@ public class Database
     #region 更新数据内容方法
     public bool UpdateData(PlayerData data)
     {
-        return TShock.DB.Query("UPDATE PlayerSpeed SET Enabled = @0, InUse = @1, CoolTime = @2, UseTime = @3 WHERE Name = @4",
-            data.Enabled ? 1 : 0, data.InUse ? 1 : 0, data.CoolTime, data.UseTime, data.Name) != 0;
+        return TShock.DB.Query("UPDATE PlayerSpeed SET Enabled = @0, Count = @1, CoolTime = @2, RangeTime = @3 WHERE Name = @4",
+            data.Enabled ? 1 : 0,data.Count, data.CoolTime, data.RangeTime, data.Name) != 0;
     }
     #endregion
 
@@ -80,9 +81,9 @@ public class Database
             return new PlayerData(
                 name: reader.Get<string>("Name"),
                 enabled: reader.Get<int>("Enabled") == 1,
-                inUse: reader.Get<int>("InUse") == 1,
+                count: reader.Get<int>("Count"),
                 coolTime: reader.Get<DateTime>("CoolTime"),
-                useTime: reader.Get<DateTime>("UseTime")
+                rangeTime: reader.Get<DateTime>("RangeTime")
             );
         }
 
@@ -100,9 +101,9 @@ public class Database
             data.Add(new PlayerData(
                 name: reader.Get<string>("Name"),
                 enabled: reader.Get<int>("Enabled") == 1,
-                inUse: reader.Get<int>("InUse") == 1,
+                count: reader.Get<int>("Count"),
                 coolTime: reader.Get<DateTime>("CoolTime"),
-                useTime: reader.Get<DateTime>("UseTime")
+                rangeTime: reader.Get<DateTime>("RangeTime")
             ));
         }
 

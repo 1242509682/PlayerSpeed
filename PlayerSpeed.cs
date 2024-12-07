@@ -1,5 +1,4 @@
-﻿using Microsoft.Xna.Framework;
-using Terraria;
+﻿using Terraria;
 using TerrariaApi.Server;
 using TShockAPI;
 using TShockAPI.Hooks;
@@ -12,7 +11,7 @@ public class PlayerSpeed : TerrariaPlugin
     #region 插件信息
     public override string Name => "玩家速度";
     public override string Author => "逆光奔跑 羽学";
-    public override Version Version => new Version(1, 2, 0);
+    public override Version Version => new Version(1, 2, 1);
     public override string Description => "使用指令设置玩家移动速度 并在冲刺或穿上自定义装备跳跃时触发";
     #endregion
 
@@ -83,8 +82,7 @@ public class PlayerSpeed : TerrariaPlugin
             {
                 Name = plr.Name,
                 Enabled = false,
-                InUse = false,
-                UseTime = DateTime.UtcNow,
+                Count = 0,
                 CoolTime = DateTime.UtcNow,
             };
             DB.AddData(newData); // 添加到数据库
@@ -99,100 +97,118 @@ public class PlayerSpeed : TerrariaPlugin
         var tplr = plr.TPlayer;
         var data = DB.GetData(plr.Name);
         if (plr == null || data == null || !Config.Enabled || !plr.IsLoggedIn || !plr.Active || !plr.HasPermission("vel.use")) return;
-
         var now = DateTime.UtcNow;
-        //冷却时间
         var LastCool = data.CoolTime != default ? (float)Math.Round((now - data.CoolTime).TotalSeconds, 2) : 0f;
-        //使用时间
-        var LastUse = data.UseTime != default ? (float)Math.Round((now - data.UseTime).TotalMilliseconds, 2) : 0f;
+        var CRight = tplr.controlRight && tplr.direction == 1;
+        var CLeft = tplr.controlLeft && tplr.direction == -1;
+        var armor = tplr.armor.Take(20).Any(x => Config.ArmorItem != null && Config.ArmorItem.Contains(x.netID));
 
         //计算冷却过去多久
         if (!data.Enabled && LastCool >= Config.CoolTime)
         {
+            data.Count = 0;
             data.Enabled = true;
             DB.UpdateData(data);
-            if (Config.SendMess)
+            if (Config.Mess)
             {
-                plr.SendMessage($"玩家 [c/4EA4F2:{plr.Name}] 疾速[c/FF5265:冲刺]冷却完毕!\n" +
-                    $"在疾速时间不断[c/DBF34E:按方向]或[c/47DCBC:跳跃]可无限冲!", 244, 255, 150);
+                plr.SendMessage($"\n玩家 [c/4EA4F2:{plr.Name}] 疾速[c/FF5265:冷却]完毕!", 244, 255, 150);
+
+                if (Config.Dash)
+                {
+                    plr.SendMessage("双击[c/47DCBD:冲刺]可冲更远", 244, 255, 150);
+                }
+
+                if (Config.Jump)
+                {
+                    plr.SendMessage("装备指定物品[c/47DCBC:可加速跳跃]!", 244, 255, 150);
+                }
             }
         }
 
-        // 检查是否因达到最大使用时间而结束冲刺
-        if (data.InUse && LastUse >= Config.UseTime)
+        //使用了多少次进入冷却
+        if(data.Enabled && data.Count >= Config.Count)
         {
-            data.InUse = false;
             data.Enabled = false;
             data.CoolTime = now;
             DB.UpdateData(data);
-            if (Config.SendMess)
+            if (Config.Mess)
             {
-                plr.SendMessage($"玩家 [c/4EA4F2:{plr.Name}] 因停止疾速[c/FF5265:冲刺]或[c/DBF34E:跳跃]" +
-                    $"\n超过[c/47DCBD:{Config.UseTime}毫秒]进入冷却", 244, 255, 150);
+                plr.SendMessage($"\n玩家 [c/4EA4F2:{plr.Name}] 因[c/FF5265:冲刺]或[c/DBF34E:跳跃] 超过[c/47DCBD:{Config.Count}次]进入冷却", 244, 255, 150);
             }
             return;
         }
 
-        var EverJump = CheckJupm(tplr);
-
-        if (data.Enabled)
+        //冲刺
+        if (Config.Dash && data.Enabled && CheckDash(tplr, data, CLeft, CRight))
         {
-            if ((Config.dashDelay && tplr.dashDelay == -1) || (Config.EverJump && EverJump))
+            if (CRight)
             {
-                if (tplr.direction == 1 && tplr.controlRight)
-                {
-                    tplr.velocity.X = Config.Speed;
-                    tplr.velocity = new Vector2(Config.Speed, tplr.velocity.Y);
-                    TSPlayer.All.SendData(PacketTypes.PlayerUpdate, "", plr.Index, 0f, 0f, 0f, 0);
-                    if (Config.SendMess && Config.SendMess2)
-                    {
-                        plr.SendMessage($"玩家 [c/4EA4F2:{plr.Name}] [c/FF5265:上次]冲刺:[c/FFAE52:{LastUse}毫秒]", 244, 255, 150);
-                    }
-
-                    data.UseTime = now;
-                    data.InUse = true;
-                    DB.UpdateData(data);
-                }
-
-                else if (tplr.direction == -1 && tplr.controlLeft)
-                {
-                    tplr.velocity.X = -Config.Speed;
-                    tplr.velocity = new Vector2(-Config.Speed, tplr.velocity.Y);
-                    TSPlayer.All.SendData(PacketTypes.PlayerUpdate, "", plr.Index, 0f, 0f, 0f, 0);
-                    if (Config.SendMess && Config.SendMess2)
-                    {
-                        plr.SendMessage($"玩家 [c/4EA4F2:{plr.Name}] [c/FF5265:上次]冲刺:[c/FFAE52:{LastUse}毫秒]", 244, 255, 150);
-                    }
-
-                    data.UseTime = now;
-                    data.InUse = true;
-                    DB.UpdateData(data);
-                }
+                tplr.velocity.X = Config.Speed * Config.Multiple;
+                data.Count++;
             }
+
+            else if (CLeft)
+            {
+                tplr.velocity.X = -Config.Speed * Config.Multiple;
+                data.Count++;
+            }
+
+            DB.UpdateData(data);
+            TSPlayer.All.SendData(PacketTypes.PlayerUpdate, "", plr.Index, 0f, 0f, 0f, 0);
+        }
+
+        //跳跃
+        if (Config.Jump && data.Enabled && armor && CheckJupm(tplr, data, CLeft, CRight))
+        {
+            if (CRight)
+            {
+                tplr.velocity.X = Config.Speed;
+                data.Count++;
+            }
+
+            else if (CLeft)
+            {
+                tplr.velocity.X = -Config.Speed;
+                data.Count++;
+            }
+
+            DB.UpdateData(data);
+            TSPlayer.All.SendData(PacketTypes.PlayerUpdate, "", plr.Index, 0f, 0f, 0f, 0);
         }
     }
     #endregion
 
-    #region 检查玩家跳跃方法
-    private static bool CheckJupm(Player tplr)
+    #region 检查玩家跳跃间隔方法
+    private static bool CheckJupm(Player tplr, Database.PlayerData data, bool CLeft, bool CRight)
     {
-        var click = 0;
-        var EverJump = false;
-        var CRight = tplr.controlRight && tplr.direction == 1;
-        var CLeft = tplr.controlLeft && tplr.direction == -1;
-        var armor = tplr.armor.Take(20).Any(x => Config.ArmorItem.Contains(x.netID));
+        var now = DateTime.UtcNow;
+        var Jump = tplr.controlJump;
+        if ((now - data.RangeTime).TotalMilliseconds < Config.Range) return false;
 
-        if (CRight || CLeft)
+        if ((Jump && CRight) || (CLeft && Jump))
         {
-            click++;
+            data.RangeTime = now; // 更新最后一次跳跃的时间
+            return true;
         }
 
-        if (click >= 1 && tplr.controlJump && armor)
+        return false;
+    }
+    #endregion
+
+    #region 检查玩家冲刺间隔方法
+    private static bool CheckDash(Player tplr, Database.PlayerData data, bool CLeft, bool CRight)
+    {
+        var now = DateTime.UtcNow;
+        var dash = tplr.dashDelay == -1;
+        if ((now - data.RangeTime).TotalMilliseconds < Config.Range) return false;
+
+        if ((dash && CRight) || (CLeft && dash))
         {
-            EverJump = true;
+            data.RangeTime = now; // 更新最后一次跳跃的时间
+            return true;
         }
 
-        return EverJump;
-    } 
+        return false;
+    }
     #endregion
 }

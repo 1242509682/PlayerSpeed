@@ -7,6 +7,17 @@
 ## Update Log
 
 ```
+v1.2.0
+Infinite Sprint Mechanism Added:
+When using shield-type accessories, double-tap to sprint continuously.
+Equipping specified items allows continuous jumping, which can refresh the infinite sprint interval.
+If the sprint interval exceeds the milliseconds defined as Stop Infinite Sprint, it will automatically enter a cooldown period.
+
+New Attributes Added to /vel s Command:
+Stop Time (ut)
+Add Jump Item (add)
+Remove Jump Item (del)
+
 v1.1.0
 Modified based on customization requirements by the server owner "Sentinel" from the group.
 Added dash logic and cooldown mechanism.
@@ -36,10 +47,18 @@ Decompiled from Niguang Benpao's version.
 > Configuration file location： tshock/玩家速度.json
 ```json
 {
-"PluginEnabled": true,
-  "CooldownTime": 20,
-  "Speed": 40.0,
-  "Announcement": true
+  "PluginEnabled": true,
+  "InfiniteSprintCooldownSeconds": 35,
+  "MillisecondsToStopInfiniteSprint": 1000,
+  "SprintSpeed": 20.0,
+  "EnableBroadcastMessages": true,
+  "ShieldDoubleTapSprintBoost": true,
+  "BroadcastInfiniteSprintInterval": true,
+  "JumpBoostWithEquippedItems": true,
+  "TriggerJumpBoostItemIDs": [
+    5107,
+    4989
+  ]
 }
 ```
 ## FeedBack

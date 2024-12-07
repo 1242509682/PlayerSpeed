@@ -93,6 +93,7 @@ Decompiled from Niguang Benpao's version.
 | /vel off                         | None  | vel.admin    | Disable the plugin function          |
 | /vel set                         | /vel s| vel.admin    | Set global dash speed and cooldown time |
 | /vel mess                        | None  | vel.admin    | Toggle announcement system            |
+| /vel boss                        | None  | vel.admin    | Toggle automatic progress mode            |
 | /vel del                         | None  | vel.admin    | Delete specified player data          |
 | /vel reset                       | None  | vel.admin    | Reset all player data                 |
 | /reload                          | None  | tshock.cfg.reload | Reload configuration file |
